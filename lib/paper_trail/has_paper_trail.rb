@@ -54,8 +54,17 @@ module PaperTrail
 
         paper_trail_options[:meta] ||= {}
 
-        class_attribute :paper_trail_enabled_for_model
-        self.paper_trail_enabled_for_model = true
+        # class_attribute :paper_trail_enabled_for_model
+        class << self
+          def paper_trail_enabled_for_model # default return value to `true`
+            @paper_trail_enabled_for_model.nil? ? true : @paper_trail_enabled_for_model
+          end
+          alias_method :paper_trail_enabled_for_model?, :paper_trail_enabled_for_model
+
+          def paper_trail_enabled_for_model=(value)
+            @paper_trail_enabled_for_model = value unless value.nil? # never accept `nil` as a valid value
+          end
+        end
 
         class_attribute :versions_association_name
         self.versions_association_name = options[:versions] || :versions
@@ -202,9 +211,13 @@ module PaperTrail
         nil
       end
 
+      def paper_trail_enabled_for_model?
+        self.class.paper_trail_enabled_for_model?
+      end
+
       # Executes the given method or block without creating a new version.
       def without_versioning(method = nil)
-        paper_trail_was_enabled = self.paper_trail_enabled_for_model
+        paper_trail_was_enabled = self.paper_trail_enabled_for_model?
         self.class.paper_trail_off!
         method ? method.to_proc.call(self) : yield
       ensure
@@ -333,7 +346,7 @@ module PaperTrail
       end
 
       def paper_trail_switched_on?
-        PaperTrail.enabled? && PaperTrail.enabled_for_controller? && self.paper_trail_enabled_for_model
+        PaperTrail.enabled? && PaperTrail.enabled_for_controller? && self.paper_trail_enabled_for_model?
       end
 
       def save_version?
