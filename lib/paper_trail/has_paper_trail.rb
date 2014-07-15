@@ -30,6 +30,7 @@ module PaperTrail
       # :versions     the name to use for the versions association.  Default is `:versions`.
       # :version      the name to use for the method which returns the version the instance was reified from.
       #               Default is `:version`.
+      # :class_association_name   the name of a custom VersionAssociation class.  This class should inherit from `PaperTrail::VersionAssociation`.
       def has_paper_trail(options = {})
         # Lazily include the instance methods so we don't clutter up
         # any more ActiveRecord models than we have to.
@@ -43,6 +44,9 @@ module PaperTrail
 
         class_attribute :version_class_name
         self.version_class_name = options[:class_name] || 'PaperTrail::Version'
+
+        class_attribute :version_association_class_name
+        self.version_association_class_name = options[:class_association_name] || 'PaperTrail::VersionAssociation'
 
         class_attribute :paper_trail_options
         self.paper_trail_options = options.dup
@@ -69,6 +73,8 @@ module PaperTrail
             :as         => :item,
             :order      => "#{PaperTrail.timestamp_field} ASC"
         end
+
+        self.version_class_name.constantize.version_association_class = self.version_association_class_name
 
         options_on = Array(options[:on]) # so that a single symbol can be passed in without wrapping it in an `Array`
         after_create  :record_create, :if => :save_version? if options_on.empty? || options_on.include?(:create)
@@ -106,6 +112,10 @@ module PaperTrail
 
       def paper_trail_version_class
         @paper_trail_version_class ||= version_class_name.constantize
+      end
+
+      def paper_trail_version_association_class
+        @paper_trail_version_association_class ||= version_association_class_name.constantize
       end
 
       # Used for Version#object attribute

@@ -5,8 +5,9 @@ module PaperTrail
     extend ::ActiveSupport::Concern
 
     included do
+      attr_accessor :version_association_class
+
       belongs_to :item, :polymorphic => true
-      has_many :version_associations, :dependent => :destroy
 
       validates_presence_of :event
       attr_accessible :item_type, :item_id, :event, :whodunnit, :object, :object_changes, :transaction_id if PaperTrail.active_record_protected_attributes?
@@ -17,6 +18,11 @@ module PaperTrail
     end
 
     module ClassMethods
+      def version_association_class=(klass)
+        @version_association_class = klass.constantize
+        has_many :version_associations, :dependent => :destroy, class_name: @version_association_class
+      end
+
       def with_item_keys(item_type, item_id)
         where :item_type => item_type, :item_id => item_id
       end
