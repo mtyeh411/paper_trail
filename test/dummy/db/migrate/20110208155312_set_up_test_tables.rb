@@ -5,7 +5,7 @@ class SetUpTestTables < ActiveRecord::Migration
       t.text      :a_text
       t.integer   :an_integer
       t.float     :a_float
-      t.decimal   :a_decimal
+      t.decimal   :a_decimal, :precision => 6, :scale => 4
       t.datetime  :a_datetime
       t.time      :a_time
       t.date      :a_date
@@ -92,6 +92,10 @@ class SetUpTestTables < ActiveRecord::Migration
       t.string :content
     end
 
+    create_table :post_with_statuses, :force => true do |t|
+      t.integer :status
+    end
+
     create_table :animals, :force => true do |t|
       t.string :name
       t.string :species   # single table inheritance column
@@ -100,7 +104,7 @@ class SetUpTestTables < ActiveRecord::Migration
     create_table :documents, :force => true do |t|
       t.string :name
     end
-    
+
     create_table :legacy_widgets, :force => true do |t|
       t.string    :name
       t.integer   :version

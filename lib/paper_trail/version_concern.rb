@@ -43,22 +43,60 @@ module PaperTrail
         where 'event <> ?', 'create'
       end
 
-      # These methods accept a timestamp or a version and returns other versions that come before or after
-      def subsequent(obj)
+      # Expects `obj` to be an instance of `PaperTrail::Version` by default, but can accept a timestamp if
+      # `timestamp_arg` receives `true`
+      def subsequent(obj, timestamp_arg = false)
+        if timestamp_arg != true && self.primary_key_is_int?
+          return where(arel_table[primary_key].gt(obj.id)).order(arel_table[primary_key].asc)
+        end
+
         obj = obj.send(PaperTrail.timestamp_field) if obj.is_a?(self)
-        where("#{table_name}.#{PaperTrail.timestamp_field} > ?", obj).
-          order("#{table_name}.#{PaperTrail.timestamp_field} ASC")
+        where(arel_table[PaperTrail.timestamp_field].gt(obj)).order(self.timestamp_sort_order)
       end
 
-      def preceding(obj)
+      def preceding(obj, timestamp_arg = false)
+        if timestamp_arg != true && self.primary_key_is_int?
+          return where(arel_table[primary_key].lt(obj.id)).order(arel_table[primary_key].desc)
+        end
+
         obj = obj.send(PaperTrail.timestamp_field) if obj.is_a?(self)
-        where("#{table_name}.#{PaperTrail.timestamp_field} < ?", obj).
-          order("#{table_name}.#{PaperTrail.timestamp_field} DESC")
+        where(arel_table[PaperTrail.timestamp_field].lt(obj)).order(self.timestamp_sort_order('desc'))
       end
+
 
       def between(start_time, end_time)
-        where("#{table_name}.#{PaperTrail.timestamp_field} > ? AND #{table_name}.#{PaperTrail.timestamp_field} < ?",
-          start_time, end_time).order("#{table_name}.#{PaperTrail.timestamp_field} ASC")
+        where(
+          arel_table[PaperTrail.timestamp_field].gt(start_time).
+          and(arel_table[PaperTrail.timestamp_field].lt(end_time))
+        ).order(self.timestamp_sort_order)
+      end
+
+      # defaults to using the primary key as the secondary sort order if possible
+      def timestamp_sort_order(direction = 'asc')
+        [arel_table[PaperTrail.timestamp_field].send(direction.downcase)].tap do |array|
+          array << arel_table[primary_key].send(direction.downcase) if self.primary_key_is_int?
+        end
+      end
+
+      # Performs an attribute search on the serialized object by invoking the
+      # identically-named method in the serializer being used.
+      def where_object(args = {})
+        raise ArgumentError, 'expected to receive a Hash' unless args.is_a?(Hash)
+        arel_field = arel_table[:object]
+
+        where_conditions = args.map do |field, value|
+          PaperTrail.serializer.where_object_condition(arel_field, field, value)
+        end.reduce do |condition1, condition2|
+          condition1.and(condition2)
+        end
+
+        where(where_conditions)
+      end
+
+      def primary_key_is_int?
+        @primary_key_is_int ||= columns_hash[primary_key].type == :integer
+      rescue
+        true
       end
 
       # Returns whether the `object` column is using the `json` type supported by PostgreSQL
@@ -196,10 +234,14 @@ module PaperTrail
     end
 
     def index
-      table_name = self.class.table_name
-      @index ||= sibling_versions.
-        select(["#{table_name}.#{PaperTrail.timestamp_field}", "#{table_name}.#{self.class.primary_key}"]).
-        order("#{table_name}.#{PaperTrail.timestamp_field} ASC").index(self)
+      table = self.class.arel_table unless @index
+      @index ||=
+        if self.class.primary_key_is_int?
+          sibling_versions.select(table[self.class.primary_key]).order(table[self.class.primary_key].asc).index(self)
+        else
+          sibling_versions.select([table[PaperTrail.timestamp_field], table[self.class.primary_key]]).
+            order(self.class.timestamp_sort_order).index(self)
+        end
     end
 
     private

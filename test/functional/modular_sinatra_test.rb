@@ -3,7 +3,9 @@ require 'sinatra/base'
 
 # --- Tests for modular `Sinatra::Base` style ----
 class BaseApp < Sinatra::Base
-  ActiveRecord::Base.establish_connection(:adapter => 'sqlite3', :database => File.expand_path('../../dummy/db/test.sqlite3', __FILE__))
+  configs = YAML.load_file(File.expand_path('../../dummy/config/database.yml', __FILE__))
+  ActiveRecord::Base.configurations = configs
+  ActiveRecord::Base.establish_connection(:test)
   register PaperTrail::Sinatra
 
   get '/test' do
@@ -27,7 +29,6 @@ class ModularSinatraTest < ActionDispatch::IntegrationTest
   end
 
   test 'baseline' do
-    assert_nil Widget.first
     assert_nil Widget.create.versions.first.whodunnit
   end
 
@@ -36,7 +37,7 @@ class ModularSinatraTest < ActionDispatch::IntegrationTest
     should "sets the `user_for_paper_trail` from the `current_user` method" do
       get '/test'
       assert_equal 'Hello', last_response.body
-      widget = Widget.first
+      widget = Widget.last
       assert_not_nil widget
       assert_equal 'foo', widget.name
       assert_equal 1, widget.versions.size

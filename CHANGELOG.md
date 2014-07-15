@@ -1,3 +1,43 @@
+## 3.1.0 (Unreleased)
+
+  - [#394](https://github.com/airblade/paper_trail/pull/394) - Add RSpec matcher `have_a_version_with` for easier testing.
+
+## 3.0.3
+
+  - [#386](https://github.com/airblade/paper_trail/issues/386) - Fix eager loading of `versions` association with custom class name
+    in `ActiveRecord` 4.1.
+  - [#384](https://github.com/airblade/paper_trail/issues/384) - Fix `VersionConcern#originator` instance method.
+  - [#383](https://github.com/airblade/paper_trail/pull/383) - Make gem compatible with `ActiveRecord::Enum` (available in `ActiveRecord` 4.1+).
+  - [#380](https://github.com/airblade/paper_trail/pull/380) / [#377](https://github.com/airblade/paper_trail/issues/377) -
+    Add `VersionConcern#where_object` instance method; acts as a helper for querying against the `object` column in versions table.
+  - [#373](https://github.com/airblade/paper_trail/pull/373) - Fix default sort order for the `versions` association in `ActiveRecord` 4.1.
+  - [#372](https://github.com/airblade/paper_trail/pull/372) - Use [Arel](https://github.com/rails/arel) for SQL construction.
+  - [#365](https://github.com/airblade/paper_trail/issues/365) - `VersionConcern#version_at` should return `nil` when receiving a timestamp
+    that occured after the object was destroyed.
+  - [#347](https://github.com/airblade/paper_trail/pull/347) - Autoload `ActiveRecord` models in via a `Rails::Engine` when
+    the gem is used with `Rails`.
+  - Expand `PaperTrail::VERSION` into a module, mimicking the form used by Rails to give it some additional modularity & versatility.
+  - Fixed `VersionConcern#index` instance method so that it conforms to using the primary key for ordering when possible.
+
+## 3.0.2
+
+  - [#357](https://github.com/airblade/paper_trail/issues/357) - If a `Version` instance is reified and then persisted at that state,
+    it's timestamp attributes for update should still get `touch`ed.
+  - [#351](https://github.com/airblade/paper_trail/pull/351) / [#352](https://github.com/airblade/paper_trail/pull/352) -
+    `PaperTrail::Rails::Controller` should hook into all controller types, and should not get loaded unless `ActionController` is.
+  - [#346](https://github.com/airblade/paper_trail/pull/346) - `user_for_paper_trail` method should accommodate different types
+    for return values from `current_user` method.
+  - [#344](https://github.com/airblade/paper_trail/pull/344) - Gem is now tested against `MySQL` and `PostgreSQL` in addition to `SQLite`.
+  - [#317](https://github.com/airblade/paper_trail/issues/317) / [#314](https://github.com/airblade/paper_trail/issues/314) -
+    `versions` should default to ordering via the primary key if it is an integer to avoid timestamp comparison issues.
+  - `PaperTrail::Cleaner.clean_versions!` should group versions by `PaperTrail.timestamp_field` when deciding which ones to
+    keep / destroy, instead of always grouping by the `created_at` field.
+  - If a `Version` instance is reified and then persisted at that state, it's source version
+    (`model_instance#version_association_name`, usually `model_instance#version`) will get cleared since persisting it causes it to
+    become the live instance.
+  - If `destroy` actions are tracked for a versioned model, invoking `destroy` on the model will cause the corresponding version that
+    gets generated to be assigned as the source version (`model_instance#version_association_name`, usually `model_instance#version`).
+
 ## 3.0.1
 
   - [#340](https://github.com/airblade/paper_trail/issues/340) - Prevent potential error encountered when using the `InstallGenerator`
@@ -32,7 +72,7 @@
   - [#281](https://github.com/airblade/paper_trail/issues/281) - `Rails::Controller` helper will return `false` for the
     `paper_trail_enabled_for_controller` method if `PaperTrail.enabled? == false`.
   - [#280](https://github.com/airblade/paper_trail/pull/280) - Don't track virtual timestamp attributes.
-  - [#278](https://github.com/airblade/paper_trail/issues/278)/[#272](https://github.com/airblade/paper_trail/issues/272) -
+  - [#278](https://github.com/airblade/paper_trail/issues/278) / [#272](https://github.com/airblade/paper_trail/issues/272) -
     Make RSpec and Cucumber helpers usable with [Spork](https://github.com/sporkrb/spork) and [Zeus](https://github.com/burke/zeus).
   - [#273](https://github.com/airblade/paper_trail/pull/273) - Make the `only` and `ignore` options accept `Hash` arguments;
     allows for conditional tracking.

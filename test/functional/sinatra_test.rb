@@ -3,7 +3,9 @@ require 'test_helper'
 
 # --- Tests for non-modular `Sinatra::Application` style ----
 class Sinatra::Application
-  ActiveRecord::Base.establish_connection(:adapter => 'sqlite3', :database => File.expand_path('../../dummy/db/test.sqlite3', __FILE__))
+  configs = YAML.load_file(File.expand_path('../../dummy/config/database.yml', __FILE__))
+  ActiveRecord::Base.configurations = configs
+  ActiveRecord::Base.establish_connection(:test)
   register PaperTrail::Sinatra # we shouldn't actually need this line if I'm not mistaken but the tests seem to fail without it ATM
 
   get '/test' do
@@ -28,7 +30,6 @@ class SinatraTest < ActionDispatch::IntegrationTest
   end
 
   test 'baseline' do
-    assert_nil Widget.first
     assert_nil Widget.create.versions.first.whodunnit
   end
 
@@ -37,7 +38,7 @@ class SinatraTest < ActionDispatch::IntegrationTest
     should "sets the `user_for_paper_trail` from the `current_user` method" do
       get '/test'
       assert_equal 'Hai', last_response.body
-      widget = Widget.first
+      widget = Widget.last
       assert_not_nil widget
       assert_equal 'bar', widget.name
       assert_equal 1, widget.versions.size

@@ -40,9 +40,9 @@ The Rails 2.3 code is on the [`rails2`](https://github.com/airblade/paper_trail/
 
 ### Rails 3 & 4
 
-1. Add `PaperTrail` to your `Gemfile`.
+1. Add PaperTrail to your `Gemfile`.
 
-    `gem 'paper_trail', '~> 3.0.1'`
+    `gem 'paper_trail', '~> 3.0.3'`
 
 2. Generate a migration which will add a `versions` table to your database.
 
@@ -56,15 +56,15 @@ The Rails 2.3 code is on the [`rails2`](https://github.com/airblade/paper_trail/
 
 ### Sinatra
 
-In order to configure `PaperTrail` for usage with [Sinatra](http://www.sinatrarb.com),
-your `Sinatra` app must be using `ActiveRecord` 3 or  `ActiveRecord` 4. It is also recommended to use the
+In order to configure PaperTrail for usage with [Sinatra](http://www.sinatrarb.com),
+your `Sinatra` app must be using `ActiveRecord` 3 or 4. It is also recommended to use the
 [Sinatra ActiveRecord Extension](https://github.com/janko-m/sinatra-activerecord) or something similar for managing
 your applications `ActiveRecord` connection in a manner similar to the way `Rails` does. If using the aforementioned
-`Sinatra ActiveRecord Extension`, steps for setting up your app with `PaperTrail` will look something like this:
+`Sinatra ActiveRecord Extension`, steps for setting up your app with PaperTrail will look something like this:
 
-1. Add `PaperTrail` to your `Gemfile`.
+1. Add PaperTrail to your `Gemfile`.
 
-    `gem 'paper_trail', '~> 3.0.1'`
+    `gem 'paper_trail', '~> 3.0.3'`
 
 2. Generate a migration to add a `versions` table to your database.
 
@@ -721,6 +721,10 @@ For example:
 
 ```ruby
 # config/initializers/paper_trail.rb
+
+# the following line is required for PaperTrail >= 3.0.3 with Rails
+PaperTrail::Rails::Engine.eager_load!
+
 module PaperTrail
   class Version < ActiveRecord::Base
     attr_accessible :author_id, :word_count, :answer
@@ -889,7 +893,7 @@ A valid serializer is a `module` (or `class`) that defines a `load` and `dump` m
 
 ## Limiting the number of versions created per object instance
 
-If you are weary of your `versions` table growing to an unwieldy size, or just don't care to track more than a certain number of versions per object,
+If you are wary of your `versions` table growing to an unwieldy size, or just don't care to track more than a certain number of versions per object,
 there is a configuration option that can be set to cap the number of versions saved per object. Note that this value must be numeric, and it only applies to
 versions other than `create` events (which will always be preserved if they are stored).
 
@@ -965,6 +969,25 @@ describe Widget do
 end
 ```
 
+It is also possible to do assertions on the versions using `have_a_version_with` matcher
+
+```
+ describe '`have_a_version_with` matcher' do
+    before do
+      widget.update_attributes!(:name => 'Leonard', :an_integer => 1 )
+      widget.update_attributes!(:name => 'Tom')
+      widget.update_attributes!(:name => 'Bob')
+    end
+
+    it "is possible to do assertions on versions" do
+       widget.should have_a_version_with :name => 'Leonard', :an_integer => 1
+       widget.should have_a_version_with :an_integer => 1
+       widget.should have_a_version_with :name => 'Tom'
+    end
+  end
+
+```
+
 ### Cucumber
 
 PaperTrail provides a helper for [Cucumber](http://cukes.info) that works similar to the RSpec helper.
@@ -1004,9 +1027,9 @@ Spork.prefork do
 end
 ```
 
-### Zeus
+### Zeus or Spring
 
-If you wish to use the `RSpec` or `Cucumber` heleprs with [Zeus](https://github.com/burke/zeus), you will need to
+If you wish to use the `RSpec` or `Cucumber` helpers with [Zeus](https://github.com/burke/zeus) or [Spring](https://github.com/rails/spring), you will need to
 manually require the helper(s) in your test helper, like so:
 
 ```ruby
@@ -1018,11 +1041,24 @@ require 'rspec/rails'
 require 'paper_trail/frameworks/rspec'
 ```
 
+## Testing PaperTrail
+
+Paper Trail has facilities to test aganist Postgres, Mysql and SQLite. To switch between DB engines you will need to export the DB Variable for the engine you wish to test aganist.
+
+Though be aware we do not have the abilty to create the db's (except sqlite) for you.   You can look at .travis.yml before_script for an example of how to create the db's needed.
+
+```
+export DB=postgres
+export DB=mysql
+export DB=sqlite # this is default
+```
+
 ## Articles
 
-[Using PaperTrail to track stack traces](http://rubyrailsexpert.com/?p=36), T James Corcoran's blog, 1st October 2013.
-[RailsCast #255 - Undo with PaperTrail](http://railscasts.com/episodes/255-undo-with-paper-trail), 28th February 2011.
-[Keep a Paper Trail with PaperTrail](http://www.linux-mag.com/id/7528), Linux Magazine, 16th September 2009.
+* [Versioning with PaperTrail](http://www.sitepoint.com/versioning-papertrail), [Ilya Bodrov](http://www.sitepoint.com/author/ibodrov), 10th April 2014
+* [Using PaperTrail to track stack traces](http://rubyrailsexpert.com/?p=36), T James Corcoran's blog, 1st October 2013.
+* [RailsCast #255 - Undo with PaperTrail](http://railscasts.com/episodes/255-undo-with-paper-trail), 28th February 2011.
+* [Keep a Paper Trail with PaperTrail](http://www.linux-mag.com/id/7528), Linux Magazine, 16th September 2009.
 
 
 ## Problems
@@ -1034,6 +1070,8 @@ Please use GitHub's [issue tracker](http://github.com/airblade/paper_trail/issue
 
 Many thanks to:
 
+* [Dmitry Polushkin](https://github.com/dmitry)
+* [Russell Osborne](https://github.com/rposborne)
 * [Zachery Hostens](http://github.com/zacheryph)
 * [Jeremy Weiskotten](http://github.com/jeremyw)
 * [Phan Le](http://github.com/revo)
@@ -1082,6 +1120,7 @@ Many thanks to:
 * [Sean Marcia](https://github.com/SeanMarcia)
 * [Chulki Lee](https://github.com/chulkilee)
 * [Lucas Souza](https://github.com/lucasas)
+* [Russell Osborne](https://github.com/rposborne)
 
 
 ## Inspirations

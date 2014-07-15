@@ -1,4 +1,9 @@
 ENV["RAILS_ENV"] ||= 'test'
+ENV["DB"] ||= 'sqlite'
+
+unless File.exists?(File.expand_path('../../test/dummy/config/database.yml', __FILE__))
+  warn "WARNING: No database.yml detected for the dummy app, please run `rake prepare` first"
+end
 
 require File.expand_path('../../test/dummy/config/environment', __FILE__)
 require 'rspec/rails'
@@ -8,7 +13,7 @@ require 'ffaker'
 
 # Requires supporting ruby files with custom matchers and macros, etc,
 # in spec/support/ and its subdirectories.
-Dir[Rails.root.join('spec/support/**/*.rb')].each { |f| require f }
+Dir[File.join(File.dirname(__FILE__), 'support', '**', '*.rb')].each { |f| require f }
 
 # See http://rubydoc.info/gems/rspec-core/RSpec/Core/Configuration
 RSpec.configure do |config|

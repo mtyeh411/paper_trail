@@ -213,13 +213,18 @@ class HasPaperTrailModelTest < ActiveSupport::TestCase
       end
 
       should 'have changes' do
+
+        #TODO Postgres does not appear to pass back ActiveSupport::TimeWithZone, 
+        # so chosing the lowest common denominator to test. 
+
         changes = {
           'name'       => [nil, 'Henry'],
-          'created_at' => [nil, @widget.created_at],
-          'updated_at' => [nil, @widget.updated_at],
-          'id'         => [nil, 1]
+          'created_at' => [nil, @widget.created_at.to_time.utc],
+          'updated_at' => [nil, @widget.updated_at.to_time.utc],
+          'id'         => [nil, @widget.id]
         }
 
+        assert_equal "Time", @widget.versions.last.changeset['updated_at'][1].class.to_s
         assert_equal changes, @widget.versions.last.changeset
       end
 
@@ -435,6 +440,10 @@ class HasPaperTrailModelTest < ActiveSupport::TestCase
         Widget.reset_column_information
         assert_raise(NoMethodError) { Widget.new.sacrificial_column }
         @last = @widget.versions.last
+      end
+
+      teardown do 
+        restore_schema
       end
 
       should 'reify previous version' do
@@ -933,7 +942,7 @@ class HasPaperTrailModelTest < ActiveSupport::TestCase
     should 'store version on join clear' do
       @book.authors << @dostoyevsky
       count = PaperTrail::Version.count
-      @book.authorships(true).clear
+      @book.authorships(true).destroy_all
       assert_equal 1, PaperTrail::Version.count - count
       assert_equal @book, PaperTrail::Version.last.reify.book
       assert_equal @dostoyevsky, PaperTrail::Version.last.reify.person
@@ -1366,7 +1375,6 @@ class HasPaperTrailModelTest < ActiveSupport::TestCase
       assert_equal 3, @widget.versions.size
     end
   end
-
 
   private
 

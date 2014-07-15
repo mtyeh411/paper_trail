@@ -65,20 +65,24 @@ module PaperTrail
 
         if ::ActiveRecord::VERSION::MAJOR >= 4 # `has_many` syntax for specifying order uses a lambda in Rails 4
           has_many self.versions_association_name,
-            lambda { order("#{PaperTrail.timestamp_field} ASC") },
+            lambda { order(model.timestamp_sort_order) },
             :class_name => self.version_class_name, :as => :item
         else
           has_many self.versions_association_name,
             :class_name => self.version_class_name,
             :as         => :item,
-            :order      => "#{PaperTrail.timestamp_field} ASC"
+            :order      => self.paper_trail_version_class.timestamp_sort_order
         end
 
         self.version_class_name.constantize.version_association_class = self.version_association_class_name
 
         options_on = Array(options[:on]) # so that a single symbol can be passed in without wrapping it in an `Array`
         after_create  :record_create, :if => :save_version? if options_on.empty? || options_on.include?(:create)
-        before_update :record_update, :if => :save_version? if options_on.empty? || options_on.include?(:update)
+        if options_on.empty? || options_on.include?(:update)
+          before_save   :reset_timestamp_attrs_for_update_if_needed!, :on => :update
+          before_update :record_update, :if => :save_version?
+          after_update  :clear_version_instance!
+        end
         after_destroy :record_destroy, :if => :save_version? if options_on.empty? || options_on.include?(:destroy)
 
         # Reset the transaction id when the transaction is closed
@@ -179,20 +183,21 @@ module PaperTrail
       # Returns true if this instance is the current, live one;
       # returns false if this instance came from a previous version.
       def live?
-        @is_live ||= source_version.nil?
+        source_version.nil?
       end
 
       # Returns who put the object into its current state.
       def originator
-        @originator ||= self.class.paper_trail_version_class.with_item_keys(self.class.base_class.name, id).last.try :whodunnit
+        (source_version || send(self.class.versions_association_name).last).try(:whodunnit)
       end
 
       # Returns the object (not a Version) as it was at the given timestamp.
       def version_at(timestamp, reify_options={})
         # Because a version stores how its object looked *before* the change,
         # we need to look for the first version created *after* the timestamp.
-        v = send(self.class.versions_association_name).subsequent(timestamp).first
-        v ? v.reify(reify_options) : self
+        v = send(self.class.versions_association_name).subsequent(timestamp, true).first
+        return v.reify(reify_options) if v
+        self unless self.destroyed?
       end
 
       # Returns the objects (not Versions) as they were between the given times.
@@ -299,6 +304,7 @@ module PaperTrail
             :whodunnit      => PaperTrail.whodunnit,
             :transaction_id => PaperTrail.transaction_id
           }
+
           if self.class.paper_trail_version_class.column_names.include?('object_changes')
             data[:object_changes] = self.class.paper_trail_version_class.object_changes_col_is_json? ? changes_for_paper_trail :
               PaperTrail.serializer.dump(changes_for_paper_trail)
@@ -315,6 +321,16 @@ module PaperTrail
         end.tap { |changes| self.class.serialize_attribute_changes(changes) }
       end
 
+      # Invoked via`after_update` callback for when a previous version is reified and then saved
+      def clear_version_instance!
+        send("#{self.class.version_association_name}=", nil)
+      end
+
+      def reset_timestamp_attrs_for_update_if_needed!
+        return if self.live? # invoked via callback when a user attempts to persist a reified `Version`
+        timestamp_attributes_for_update_in_model.each { |column| send("reset_#{column}!") }
+      end
+
       def record_destroy
         if paper_trail_switched_on? and not new_record?
           object_attrs = object_attrs_for_paper_trail(item_before_change)
@@ -327,6 +343,7 @@ module PaperTrail
             :transaction_id => PaperTrail.transaction_id
           }
           version = self.class.paper_trail_version_class.create merge_metadata(data)
+          send("#{self.class.version_association_name}=", version)
           send(self.class.versions_association_name).send :load_target
           set_transaction_id(version)
           save_associations(version)
@@ -382,9 +399,13 @@ module PaperTrail
         all_timestamp_attributes.each do |column|
           previous[column] = send(column) if self.class.column_names.include?(column.to_s) and not send(column).nil?
         end
+        enums = previous.respond_to?(:defined_enums) ? previous.defined_enums : {}
         previous.tap do |prev|
           prev.id = id # `dup` clears the `id` so we add that back
-          changed_attributes.select { |k,v| self.class.column_names.include?(k) }.each { |attr, before| prev[attr] = before }
+          changed_attributes.select { |k,v| self.class.column_names.include?(k) }.each do |attr, before|
+            before = enums[attr][before] if enums[attr]
+            prev[attr] = before
+          end
         end
       end
 
