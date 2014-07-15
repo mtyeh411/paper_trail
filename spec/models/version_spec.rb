@@ -12,10 +12,23 @@ describe PaperTrail::Version do
     it { should have_db_column(:whodunnit).of_type(:string) }
     it { should have_db_column(:object).of_type(:text) }
     it { should have_db_column(:created_at).of_type(:datetime) }
+    it { should have_db_column :transaction_id }
+  end
+
+  describe "Associations" do
+    it { should belong_to :item }
+    it { should have_many :version_associations }
   end
 
   describe "Indexes" do
     it { should have_db_index([:item_type, :item_id]) }
+    it { should have_db_index :transaction_id }
+  end
+
+  describe "Scopes" do
+    it '#within_transaction(id)' do 
+      expect(subject.class.within_transaction(1).to_sql).to eq subject.class.where(transaction_id:1).to_sql 
+    end
   end
 
   describe "Methods" do
